@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-glass;
+  }
+  .glass-dark {
+    @apply bg-forest/80 backdrop-blur-md border border-white/10 shadow-glass text-white;
+  }
+}
+
+/* Hide scrollbar for clean look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #E8F5E9;
+}
+::-webkit-scrollbar-thumb {
+  background: #A5D6A7;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4CAF50;
+}

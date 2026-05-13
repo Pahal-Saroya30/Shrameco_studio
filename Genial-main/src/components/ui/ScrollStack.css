@@ -1,0 +1,71 @@
+.scroll-stack-scroller {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: visible;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+.scroll-stack-inner {
+  padding: 20vh 5rem 50rem;
+  min-height: 100vh;
+}
+
+.scroll-stack-card-wrapper {
+  position: relative;
+}
+
+.scroll-stack-card {
+  transform-origin: top center;
+  will-change: transform, filter;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+  height: 20rem;
+  width: 100%;
+  margin: 30px 0;
+  padding: 3rem;
+  border-radius: 40px;
+  box-sizing: border-box;
+  /* Improve mobile performance */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  position: relative;
+}
+
+.scroll-stack-end {
+  width: 100%;
+  height: 1px;
+}
+
+/* ── Overview section overrides ─────────────────────────────────────────── */
+
+/* The scroller sits in a 100 vh box */
+.scroll-stack-overview {
+  height: 100%;
+}
+
+/* Override the inner padding so cards are nicely framed */
+.scroll-stack-overview .scroll-stack-inner {
+  padding: 2vh 0 60rem;
+}
+
+/* Make the cards tall, full-width, and image-ready */
+.scroll-stack-overview .overview-stack-card {
+  height: clamp(420px, 60vh, 680px);
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+  border-radius: 32px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 24px 80px -20px rgba(27, 94, 32, 0.22), 0 0 0 1px rgba(27, 94, 32, 0.07);
+}
+
