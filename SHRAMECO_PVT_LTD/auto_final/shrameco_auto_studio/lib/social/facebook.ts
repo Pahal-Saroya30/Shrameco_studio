@@ -210,7 +210,7 @@ export const facebookService: PlatformService = {
 		const { accessToken, accountId, caption, imageUrl } = input;
 		if (!accountId) throw new Error('Facebook Page ID is required to publish.');
 
-		// Facebook Story Publishing Flow (/{page-id}/photo_stories)
+		// Facebook Story Publishing Flow (2-step: upload to /{page-id}/photos, publish to /{page-id}/photo_stories)
 		if (input.contentFormat === 'story') {
 			if (!accountId) throw new Error('Facebook Page ID is required to publish a Story.');
 
@@ -222,37 +222,64 @@ export const facebookService: PlatformService = {
 				throw new Error('A Story post requires at least one image slide.');
 			}
 
-			// Upload each slide as a photo to /{page-id}/photo_stories
+			// Upload each slide as a photo first, then publish to stories
+			const photoEndpoint = `${API_BASE}/${accountId}/photos`;
 			const storyEndpoint = `${API_BASE}/${accountId}/photo_stories`;
 
 			for (const imgUrl of slides) {
-				let storyRes: Response;
+				let uploadRes: Response;
 
+				// Step 1: Upload the photo as unpublished
 				if (imgUrl.startsWith('data:')) {
 					const formData = new FormData();
 					formData.append('access_token', accessToken);
+					formData.append('published', 'false');
+
 					const match = imgUrl.match(/^data:([^;,]+)[;,]/);
 					const mime = match ? match[1] : 'image/jpeg';
 					const base64Data = imgUrl.replace(/^data:[^;]+;base64,/, '');
 					const buffer = Buffer.from(base64Data, 'base64');
 					const blob = new Blob([buffer], { type: mime });
 					formData.append('source', blob, `story-${Date.now()}.jpg`);
-					storyRes = await fetch(storyEndpoint, { method: 'POST', body: formData });
+					
+					uploadRes = await fetch(photoEndpoint, { method: 'POST', body: formData });
 				} else {
-					const bodyParams = new URLSearchParams({
-						access_token: accessToken,
-						url: imgUrl,
-					});
-					storyRes = await fetch(storyEndpoint, {
+					uploadRes = await fetch(photoEndpoint, {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-						body: bodyParams,
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							access_token: accessToken,
+							url: imgUrl,
+							published: false,
+						}),
 					});
 				}
 
+				if (!uploadRes.ok) {
+					const err = await uploadRes.text();
+					throw new Error(`Facebook Story photo upload failed (${uploadRes.status}): ${err.slice(0, 300)}`);
+				}
+
+				const uploadData = await uploadRes.json();
+				const photoId = uploadData.id;
+
+				if (!photoId) {
+					throw new Error('Facebook Story photo upload response did not return a photo ID.');
+				}
+
+				// Step 2: Publish the photo ID to the Story endpoint
+				const storyRes = await fetch(storyEndpoint, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						access_token: accessToken,
+						photo_id: photoId,
+					}),
+				});
+
 				if (!storyRes.ok) {
 					const err = await storyRes.text();
-					throw new Error(`Facebook Story slide upload failed (${storyRes.status}): ${err.slice(0, 300)}`);
+					throw new Error(`Facebook Story creation failed (${storyRes.status}): ${err.slice(0, 300)}`);
 				}
 			}
 
