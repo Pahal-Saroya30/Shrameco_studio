@@ -1425,6 +1425,16 @@ async function compressImageForStorage(dataUrl: string, maxWidth = 800, quality 
 					} catch (e) {
 						console.warn('Failed to store video in IndexedDB:', e);
 					}
+					try {
+						videoDataUrl = await new Promise<string>((resolve, reject) => {
+							const reader = new FileReader();
+							reader.onload = () => resolve(reader.result as string);
+							reader.onerror = (err) => reject(err);
+							reader.readAsDataURL(vFile);
+						});
+					} catch (readErr) {
+						console.error('Failed to read video file as base64:', readErr);
+					}
 				}
 				const activeBlobUrl = (contentFormat === 'video' ? standardVideoUrl : reelVideoUrl);
 				try {
