@@ -180,13 +180,17 @@ export const facebookService: PlatformService = {
 		}
 
 		// Phase 4: Poll Reel processing status until published or timeout
-		const maxAttempts = 10;
+		let permalinkUrl = `https://facebook.com/reel/${videoId}`;
+		const maxAttempts = 12;
 		for (let i = 0; i < maxAttempts; i++) {
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			await new Promise((resolve) => setTimeout(resolve, 2500));
 			try {
-				const statusRes = await fetch(`${API_BASE}/${videoId}?fields=status&access_token=${accessToken}`);
+				const statusRes = await fetch(`${API_BASE}/${videoId}?fields=status,permalink_url&access_token=${accessToken}`);
 				if (statusRes.ok) {
 					const statusData = await statusRes.json();
+					if (statusData.permalink_url) {
+						permalinkUrl = statusData.permalink_url;
+					}
 					const state = statusData.status?.video_status;
 					if (state === 'ready' || state === 'published') {
 						break;
@@ -198,7 +202,7 @@ export const facebookService: PlatformService = {
 		}
 
 		return {
-			postUrl: `https://facebook.com/reel/${videoId}`,
+			postUrl: permalinkUrl,
 		};
 	},
 
@@ -397,8 +401,23 @@ export const facebookService: PlatformService = {
 			const postData = await postRes.json();
 			const postId = postData.id || postData.video_id;
 
+			let permalinkUrl = postId ? `https://facebook.com/${postId}` : `https://facebook.com/${accountId}`;
+			if (postId) {
+				try {
+					const detailsRes = await fetch(`${API_BASE}/${postId}?fields=permalink_url&access_token=${accessToken}`);
+					if (detailsRes.ok) {
+						const detailsData = await detailsRes.json();
+						if (detailsData.permalink_url) {
+							permalinkUrl = detailsData.permalink_url;
+						}
+					}
+				} catch (e) {
+					console.warn('Failed to fetch video permalink_url:', e);
+				}
+			}
+
 			return {
-				postUrl: postId ? `https://facebook.com/${postId}` : `https://facebook.com/${accountId}`,
+				postUrl: permalinkUrl,
 			};
 		}
 
