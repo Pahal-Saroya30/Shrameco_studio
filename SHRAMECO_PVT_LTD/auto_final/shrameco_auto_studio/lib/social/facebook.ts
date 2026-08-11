@@ -366,10 +366,11 @@ export const facebookService: PlatformService = {
 
 		// Facebook Standard Video Publishing Flow (POST /{page-id}/videos)
 		if (input.contentFormat === 'video' && (input.videoDataUrl || input.videoUrl || input.videoBlob)) {
-			const videoEndpoint = `${API_BASE}/${accountId}/videos`;
+			const videoEndpoint = `https://graph-video.facebook.com/v25.0/${accountId}/videos`;
 			const formData = new FormData();
 			formData.append('access_token', accessToken);
 			formData.append('description', caption);
+			formData.append('published', 'true');
 
 			if (input.videoDataUrl && input.videoDataUrl.startsWith('data:')) {
 				const match = input.videoDataUrl.match(/^data:([^;,]+)[;,]/);
