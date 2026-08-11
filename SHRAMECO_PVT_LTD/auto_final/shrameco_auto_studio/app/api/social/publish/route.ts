@@ -18,6 +18,14 @@ export async function POST(req: NextRequest) {
 		}
 
 		const body = await req.json();
+		console.log('[DEBUG] Publish API payload:', {
+			platform: body?.platform,
+			contentFormat: body?.contentFormat,
+			imageUrl: body?.imageUrl ? `${body.imageUrl.slice(0, 50)}...` : null,
+			carouselImagesLength: body?.carouselImages?.length,
+			carouselImagesType: typeof body?.carouselImages,
+			hasCarouselImages: Array.isArray(body?.carouselImages),
+		});
 		const platform = body?.platform as SocialPlatform;
 		const caption = typeof body?.caption === 'string' ? body.caption : '';
 		const imageUrl = typeof body?.imageUrl === 'string' ? body.imageUrl : '';

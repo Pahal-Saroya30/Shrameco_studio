@@ -105,6 +105,11 @@ export async function publishToPlatform(
 		caption,
 		imageUrl,
 		videoUrl: input.videoUrl,
+		videoDataUrl: input.videoDataUrl,
+		coverDataUrl: input.coverDataUrl,
+		videoBlob: input.videoBlob,
+		linkUrl: input.linkUrl,
+		carouselImages: input.carouselImages,
 		contentFormat: input.contentFormat,
 		scopes: input.scopes,
 	});
