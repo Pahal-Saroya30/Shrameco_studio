@@ -37,21 +37,43 @@ function FeedPreviewInner() {
 
 	React.useEffect(() => {
 		try {
-			const storedImg = sessionStorage.getItem('latest_published_image');
+			const storedImg = localStorage.getItem('latest_published_image') || sessionStorage.getItem('latest_published_image');
 			if (storedImg) setSessionImage(storedImg);
-			const storedVid = sessionStorage.getItem('latest_published_video');
+			const storedVid = localStorage.getItem('latest_published_video') || sessionStorage.getItem('latest_published_video');
 			if (storedVid) setSessionVideo(storedVid);
-			const storedAcc = sessionStorage.getItem('latest_published_account');
+			const storedAcc = localStorage.getItem('latest_published_account') || sessionStorage.getItem('latest_published_account');
 			if (storedAcc) setSessionAccount(storedAcc);
-			const storedCap = sessionStorage.getItem('latest_published_caption');
+			const storedCap = localStorage.getItem('latest_published_caption') || sessionStorage.getItem('latest_published_caption');
 			if (storedCap) setSessionCaption(storedCap);
-			const storedCarousel = sessionStorage.getItem('latest_published_carousel_images');
+			const storedCarousel = localStorage.getItem('latest_published_carousel_images') || sessionStorage.getItem('latest_published_carousel_images');
 			if (storedCarousel) {
 				try {
 					setSessionCarouselImages(JSON.parse(storedCarousel));
 				} catch (e) {}
 			}
 		} catch (e) {}
+
+		// Load cross-tab image Blob from IndexedDB
+		getMediaBlob('latest_published_image_blob').then((blob) => {
+			if (blob) {
+				const blobUrl = URL.createObjectURL(blob);
+				setSessionImage(blobUrl);
+			}
+		});
+
+		// Load cross-tab carousel Blob from IndexedDB
+		getMediaBlob('latest_published_carousel_blob').then((blob) => {
+			if (blob) {
+				blob.text().then((jsonStr) => {
+					try {
+						const photos = JSON.parse(jsonStr);
+						if (Array.isArray(photos) && photos.length > 0) {
+							setSessionCarouselImages(photos);
+						}
+					} catch (e) {}
+				});
+			}
+		});
 
 		// Load cross-tab video Blob from IndexedDB
 		getMediaBlob('latest_published_video_blob').then((blob) => {
@@ -243,7 +265,7 @@ function FeedPreviewInner() {
 						<FacebookCarouselCardPreview
 							companyName={accountName}
 							captionText={caption}
-							images={sessionCarouselImages.length > 0 ? sessionCarouselImages : (sessionImage ? [sessionImage] : [])}
+							images={sessionCarouselImages}
 						/>
 					</div>
 				) : format === 'video' ? (

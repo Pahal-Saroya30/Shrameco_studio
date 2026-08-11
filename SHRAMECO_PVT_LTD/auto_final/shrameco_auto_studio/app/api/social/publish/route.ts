@@ -3,6 +3,7 @@ import { dbConnect } from '@/lib/db/mongoose';
 import { getAuthSession } from '@/lib/auth/jwt';
 import { SocialAccount } from '@/models/SocialAccount';
 import { publishToPlatform } from '@/lib/social/publisher';
+import { memoryStore } from '@/lib/db/memoryStore';
 import type { SocialPlatform } from '@/lib/social/types';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,20 @@ export async function POST(req: NextRequest) {
 				};
 			}
 		} catch (dbErr) {
-			console.warn('MongoDB connection failed; attempting fallback.');
+			console.warn('MongoDB connection failed; checking memoryStore.');
+		}
+
+		if (!record) {
+			const memAccounts = memoryStore.getSocialAccounts(session.userId);
+			const memAcc = memAccounts.find((a: any) => a.platform === platform && a.connected);
+			if (memAcc && memAcc.accessToken) {
+				record = {
+					platform: memAcc.platform as SocialPlatform,
+					accessToken: memAcc.accessToken,
+					accountId: memAcc.accountId,
+					scopes: memAcc.scopes,
+				};
+			}
 		}
 
 		if (record) {
@@ -67,7 +81,20 @@ export async function POST(req: NextRequest) {
 				});
 				return NextResponse.json({ ok: true, postUrl: result.postUrl || null, mode: 'live' });
 			} catch (pubErr: any) {
-				console.warn('Live API publish failed, returning mock response for demo:', pubErr?.message);
+				console.error('[Facebook Graph API Error]:', pubErr?.message);
+				let cleanErrMsg = pubErr?.message || 'Meta Graph API publish failed.';
+				try {
+					const jsonMatch = cleanErrMsg.match(/\{[\s\S]*\}/);
+					if (jsonMatch) {
+						const parsedMeta = JSON.parse(jsonMatch[0]);
+						const metaObj = parsedMeta.error || parsedMeta;
+						cleanErrMsg = metaObj.error_user_msg || metaObj.error_user_title || metaObj.message || cleanErrMsg;
+					}
+				} catch (e) {}
+				return NextResponse.json(
+					{ error: cleanErrMsg },
+					{ status: 400 }
+				);
 			}
 		}
 

@@ -136,43 +136,38 @@ export async function POST(req: NextRequest) {
 
 		// 1. Try Live LLM Generation first if OPENROUTER_API_KEY is configured
 		if (openRouterApiKey && !openRouterApiKey.includes('mock-openrouter-key')) {
-			const baseSystemPrompt = `You are an elite social media copywriter creating authentic content for ${companyName} in the ${industry} industry.
+			const baseSystemPrompt = `You are a world-class social media copywriter creating high-converting content for ${companyName} (${industry}).
 
-BRAND CONTEXT:
-- Brand Name: ${companyName}
-- Industry: ${industry}
-- Brand Voice: ${brandVoice}
-- Tone Override: ${tone || 'Auto'}
-- Goal: ${goalText}
-- Content Pillars: ${contentPillars}
-- Platform: ${platform.toUpperCase()}
-- Platform Guidelines: ${currentGuideline}
+YOUR MISSION: Write ${countNum} scroll-stopping, high-converting ${platform.toUpperCase()} captions about "${cleanTopic}".
 
-STRICT CLICHÉ & BANNED WORD FILTER:
-- DO NOT use overused AI buzzwords or filler phrases such as: "in today's fast-paced world", "unlock", "elevate", "game-changer", "seamless", "delve", "tapestry", "dive deep", "harness", "testament to", "nestled".
-- Write naturally like a real human brand marketer, not robotic AI template copy.
-
-TOPIC REQUIREMENT:
-- Every variation MUST be deeply and directly about the user's specific topic: "${cleanTopic}".
-- Tailor the messaging to provide real substance on "${cleanTopic}".
+CORE COPYWRITING RULES:
+1. SCROLL-STOPPING HOOK: Start with a bold, specific, curiosity-inducing first sentence. Never start with generic intros like "Are you looking for...", "Welcome to...", or "In today's world...".
+2. DEEP TOPIC SUBSTANCE: Include concrete facts, real-world scenario details, or actionable insights specific to "${cleanTopic}". Avoid generic marketing jargon.
+3. AUTHENTIC BRAND VOICE: Write in a ${brandVoice} voice. Tone: ${tone || 'Professional & Engaging'}. Goal: ${goalText}.
+4. NATURAL HUMAN MARKETER PHRASING: Write concise, crisp sentences. Use active voice and natural phrasing. Avoid robotic filler words (unlock, elevate, game-changer, seamless, delve, dive deep, leverage, empower, tapestry, testament to).
+5. TAILORED FOR ${platform.toUpperCase()} ${(format || 'post').toUpperCase()}: Format the copy cleanly for Facebook engagement with proper line breaks and strategic emojis.
 
 VARIATION STRUCTURES (Generate exactly ${countNum} distinct variations):
-- Variation 1 (Narrative / Story Hook): Start with a compelling real-world story or bold perspective hook.
-- Variation 2 (Actionable Listicle / Insights): Use structured points or bulleted key takeaways.
-- Variation 3 (Question / Community CTA): Open with a thought-provoking question and drive authentic engagement.`;
+- Variation 1 (Narrative / Bold Hook): Start with a compelling real-world scenario, counter-intuitive insight, or strong story hook.
+- Variation 2 (Actionable Listicle / Insights): Use numbered points (1., 2., 3.) with tangible, high-value advice.
+- Variation 3 (Question / Community CTA): Open with a thought-provoking question, share a sharp perspective, and end with a clear conversation starter.`;
 
-			const systemPrompt = `${baseSystemPrompt}\n\n${activeFormatModifier}\n\nFormat output strictly as a JSON array of ${countNum} strings: ["Variation 1...", "Variation 2...", "Variation 3..."] without markdown ticks.`;
+			const systemPrompt = `${baseSystemPrompt}\n\n${activeFormatModifier}\n\nReturn ONLY a valid JSON array of ${countNum} strings, formatted exactly like this: ["Variation 1...", "Variation 2...", "Variation 3..."] without markdown codeblocks or intro text.`;
 
 			const candidateModels = Array.from(new Set([
-				openRouterModel,
 				'meta-llama/llama-3.1-8b-instruct',
-				'google/gemma-4-31b-it:free',
 				'openrouter/free',
 				'meta-llama/llama-3.3-70b-instruct',
+				'qwen/qwen-2.5-72b-instruct',
+				'google/gemma-2-9b-it',
+				openRouterModel,
 			]));
 
 			for (const modelToTry of candidateModels) {
 				try {
+					const controller = new AbortController();
+					const timeoutId = setTimeout(() => controller.abort(), 6000);
+
 					const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
 						method: 'POST',
 						headers: {
@@ -181,6 +176,7 @@ VARIATION STRUCTURES (Generate exactly ${countNum} distinct variations):
 							'X-Title': 'Brand Content Studio',
 							'Content-Type': 'application/json',
 						},
+						signal: controller.signal,
 						body: JSON.stringify({
 							model: modelToTry,
 							messages: [
@@ -191,6 +187,7 @@ VARIATION STRUCTURES (Generate exactly ${countNum} distinct variations):
 							max_tokens: 1000,
 						}),
 					});
+					clearTimeout(timeoutId);
 
 					if (openRouterRes.ok) {
 						const data = await openRouterRes.json();
@@ -199,17 +196,41 @@ VARIATION STRUCTURES (Generate exactly ${countNum} distinct variations):
 						// Strip reasoning/thinking tags that some models output
 						rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-						// Extract JSON array from square brackets
-						const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+						// Extract JSON array from square brackets with robust multiline string handling
 						let parsed: string[] = [];
+						const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
 						if (jsonMatch) {
+							const targetStr = jsonMatch[0];
 							try {
-								parsed = JSON.parse(jsonMatch[0]);
-							} catch (e) {
-								const cleaned = jsonMatch[0].replace(/```json\n?|\n?```/g, '').trim();
+								parsed = JSON.parse(targetStr);
+							} catch (e1) {
 								try {
-									parsed = JSON.parse(cleaned);
-								} catch (err2) {}
+									// Escape raw unescaped line breaks inside double-quoted JSON strings
+									const sanitized = targetStr.replace(/"((?:[^"\\]|\\.)*)"/g, (_: string, p1: string) => {
+										const cleaned = p1.replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
+										return `"${cleaned}"`;
+									});
+									parsed = JSON.parse(sanitized);
+								} catch (e2) {
+									// Regex fallback for double-quoted string array elements
+									const stringMatches = Array.from(targetStr.matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"/g));
+									if (stringMatches.length >= 2) {
+										parsed = stringMatches
+											.map((m: any) => String(m[1] || '').replace(/\\n/g, '\n').replace(/\\"/g, '"').trim())
+											.filter((s: string) => s.length > 15);
+									}
+								}
+							}
+						}
+
+						// Fallback plain text splitting if JSON parsing didn't produce an array
+						if (!Array.isArray(parsed) || parsed.length === 0) {
+							const textBlocks = rawContent
+								.split(/(?:Variation \d+|Option \d+|\d+\.\s*Option|\n\n---\n\n)/i)
+								.map((s: string) => s.replace(/^(?:\d+[\.\)]|Variation \d+:?|Option \d+:?)\s*/i, '').trim())
+								.filter((s: string) => s.length > 25);
+							if (textBlocks.length > 0) {
+								parsed = textBlocks;
 							}
 						}
 
@@ -221,7 +242,10 @@ VARIATION STRUCTURES (Generate exactly ${countNum} distinct variations):
 							const validVars = parsed.filter(
 								(v) => typeof v === 'string' && v.trim().length > 15 && !isSystemLeakage(v)
 							);
-							if (validVars.length >= countNum) {
+							if (validVars.length > 0) {
+								while (validVars.length < countNum) {
+									validVars.push(`${validVars[0]}\n\n👉 Learn more with ${companyName}!`);
+								}
 								const llmVars = validVars.slice(0, countNum);
 								const modelDisplayName = modelToTry.split('/')[1] || modelToTry;
 								return NextResponse.json({

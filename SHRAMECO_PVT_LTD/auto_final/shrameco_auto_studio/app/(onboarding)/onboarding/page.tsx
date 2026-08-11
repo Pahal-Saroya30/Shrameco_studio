@@ -4,9 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { Navbar } from '@/components/ui/Navbar';
 import {
 	Building2,
@@ -19,13 +16,17 @@ import {
 	ArrowRight,
 	ArrowLeft,
 	Sparkles,
-	Type,
+	Sliders,
 } from 'lucide-react';
 
 interface BrandWizardForm {
 	companyName: string;
 	industry: string;
 	brandVoice: string;
+	tagline: string;
+	outroLink: string;
+	socialHandle: string;
+	logoPosition: 'top-right' | 'top-left' | 'bottom-right' | 'hidden';
 	contentPillars: string[];
 	bannedTopics: string[];
 	bannedWords: string[];
@@ -36,6 +37,33 @@ interface BrandWizardForm {
 		body: string;
 	};
 }
+
+const PRE_CURATED_THEMES = [
+	{
+		id: 'neon-tech',
+		name: 'Neon Tech',
+		icon: '⚡',
+		colors: ['#6366F1', '#06B6D4', '#3B82F6'],
+	},
+	{
+		id: 'sunset-rose',
+		name: 'Sunset Rose',
+		icon: '🌅',
+		colors: ['#EC4899', '#F43F5E', '#E11D48'],
+	},
+	{
+		id: 'royal-mint',
+		name: 'Royal Mint',
+		icon: '🌲',
+		colors: ['#065F46', '#059669', '#10B981'],
+	},
+	{
+		id: 'deep-slate',
+		name: 'Deep Slate',
+		icon: '🌊',
+		colors: ['#0F172A', '#1E293B', '#38BDF8'],
+	},
+];
 
 export default function OnboardingPage() {
 	const router = useRouter();
@@ -62,23 +90,28 @@ export default function OnboardingPage() {
 			companyName: '',
 			industry: '',
 			brandVoice: '',
+			tagline: '',
+			outroLink: '',
+			socialHandle: '',
+			logoPosition: 'top-left',
 			contentPillars: ['Product Updates', 'Industry Insights', 'Customer Stories'],
 			bannedTopics: ['Politics', 'Unverified Claims'],
 			bannedWords: ['Cheap', 'Guaranteed', 'Hype'],
 			logoUrl: '',
-			colorPalette: ['#1C2427', '#3D8090', '#B8D4D8', '#6B7F8A', '#2D5F68'],
+			colorPalette: ['#1E293B', '#3B82F6'],
 			typography: {
-				heading: 'Outfit',
-				body: 'Inter',
+				heading: 'Outfit (Futuristic Display)',
+				body: 'Inter (High-Density Reading)',
 			},
 		},
 	});
 
-	const contentPillars = watch('contentPillars');
-	const bannedTopics = watch('bannedTopics');
-	const bannedWords = watch('bannedWords');
-	const colorPalette = watch('colorPalette');
+	const contentPillars = watch('contentPillars') || [];
+	const bannedTopics = watch('bannedTopics') || [];
+	const bannedWords = watch('bannedWords') || [];
+	const colorPalette = watch('colorPalette') || [];
 	const logoUrl = watch('logoUrl');
+	const logoPosition = watch('logoPosition') || 'top-left';
 	const typography = watch('typography');
 
 	// Prefill profile if existing
@@ -92,11 +125,15 @@ export default function OnboardingPage() {
 					setValue('companyName', p.companyName || '');
 					setValue('industry', p.industry || '');
 					setValue('brandVoice', p.brandVoice || '');
-					if (p.contentPillars) setValue('contentPillars', p.contentPillars);
-					if (p.bannedTopics) setValue('bannedTopics', p.bannedTopics);
-					if (p.bannedWords) setValue('bannedWords', p.bannedWords);
+					setValue('tagline', p.tagline || '');
+					setValue('outroLink', p.outroLink || '');
+					setValue('socialHandle', p.socialHandle || '');
+					setValue('logoPosition', p.logoPosition || 'top-left');
+					if (p.contentPillars && p.contentPillars.length > 0) setValue('contentPillars', p.contentPillars);
+					if (p.bannedTopics && p.bannedTopics.length > 0) setValue('bannedTopics', p.bannedTopics);
+					if (p.bannedWords && p.bannedWords.length > 0) setValue('bannedWords', p.bannedWords);
 					if (p.logoUrl) setValue('logoUrl', p.logoUrl);
-					if (p.colorPalette) setValue('colorPalette', p.colorPalette);
+					if (p.colorPalette && p.colorPalette.length > 0) setValue('colorPalette', p.colorPalette);
 					if (p.typography) setValue('typography', p.typography);
 				}
 			} catch (err) {
@@ -156,8 +193,11 @@ export default function OnboardingPage() {
 	};
 
 	const addColor = () => {
-		if (!colorPalette.includes(colorInput)) {
-			setValue('colorPalette', [...colorPalette, colorInput]);
+		const hex = colorInput.trim().toUpperCase();
+		if (!hex) return;
+		const formatted = hex.startsWith('#') ? hex : `#${hex}`;
+		if (!colorPalette.includes(formatted)) {
+			setValue('colorPalette', [...colorPalette, formatted]);
 		}
 	};
 
@@ -169,7 +209,11 @@ export default function OnboardingPage() {
 		);
 	};
 
-	// When step changes to 3, enable submit after a 500ms safety delay to prevent double-click accidental submits
+	const selectPreCuratedTheme = (themeColors: string[]) => {
+		setValue('colorPalette', themeColors);
+	};
+
+	// When step changes to 3, enable submit after a 500ms safety delay
 	useEffect(() => {
 		if (step === 3) {
 			setCanSubmitStep3(false);
@@ -187,7 +231,6 @@ export default function OnboardingPage() {
 	};
 
 	const handleFinalSubmit = async (data: BrandWizardForm) => {
-		// Strictly guard: only save & redirect if on Step 3 AND cooldown has elapsed
 		if (step !== 3 || !canSubmitStep3) return;
 
 		setIsSaving(true);
@@ -215,53 +258,53 @@ export default function OnboardingPage() {
 		return (
 			<div className="min-h-screen bg-[#EFF6F7] text-slate-800 flex items-center justify-center font-sans">
 				<div className="flex flex-col items-center space-y-4">
-					<div className="w-10 h-10 border-4 border-[#3D8090]/30 border-t-[#3D8090] rounded-full animate-spin" />
-					<p className="text-slate-600 text-sm font-medium">Loading Brand Studio Profile...</p>
+					<div className="w-10 h-10 border-4 border-[#1d4d4f]/30 border-t-[#1d4d4f] rounded-full animate-spin" />
+					<p className="text-slate-600 text-sm font-medium">Loading Brand Profile...</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-[#EFF6F7] flex flex-col font-sans selection:bg-[#3D8090]/20 selection:text-[#2D5F68]">
+		<div className="min-h-screen bg-[#EFF6F7] flex flex-col font-sans">
 			<Navbar />
 
-			<main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
-				{/* Step Indicator Progress Bar */}
-				<div className="mb-8 p-6 bg-white/80 backdrop-blur-xl border border-white/90 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+			<main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
+				{/* Top Card: Step Indicator Progress Bar */}
+				<div className="p-6 bg-white border border-slate-200/80 rounded-3xl shadow-sm">
 					<div className="flex items-center justify-between mb-3.5">
 						<div>
-							<h1 className="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+							<h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-display">
 								Brand Profile Setup
 							</h1>
-							<p className="text-slate-600 text-xs sm:text-sm mt-1">
+							<p className="text-slate-500 text-xs sm:text-sm font-medium mt-1">
 								Configure your brand guidelines so AI content matches your exact voice & rules.
 							</p>
 						</div>
-						<div className="text-right">
-							<span className="inline-flex items-center px-3 py-1 rounded-full bg-[#3D8090]/15 text-[#3D8090] text-xs font-extrabold font-mono">
+						<div className="text-right flex-shrink-0">
+							<span className="inline-flex items-center px-3.5 py-1 rounded-full bg-[#E0EDEF] text-[#1d4d4f] text-xs font-black">
 								Step {step} of 3
 							</span>
 						</div>
 					</div>
 
-					<div className="w-full bg-[#E2EFF1] rounded-full h-2.5 overflow-hidden border border-[#B8D4D8]/50 p-0.5 shadow-inner-soft">
+					{/* Thin progress line */}
+					<div className="w-full bg-[#E2EFF1] rounded-full h-1.5 overflow-hidden my-3">
 						<div
-							className="bg-gradient-to-r from-[#214349] via-[#2D5F68] to-[#3D8090] h-full rounded-full transition-all duration-500 ease-out shadow-sm"
+							className="bg-[#1d4d4f] h-full rounded-full transition-all duration-500 ease-out"
 							style={{ width: `${(step / 3) * 100}%` }}
 						/>
 					</div>
 
-					<div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs font-extrabold">
+					{/* 3 Step Pill Buttons */}
+					<div className="grid grid-cols-3 gap-3 mt-4 text-center text-xs font-bold">
 						<button
 							type="button"
 							onClick={() => handleStepChange(1)}
-							className={`py-2.5 px-2.5 rounded-2xl transition-all ${
+							className={`py-3 px-3 rounded-2xl transition-all cursor-pointer ${
 								step === 1
-									? 'bg-gradient-to-r from-[#214349] via-[#2D5F68] to-[#3D8090] text-white shadow-md shadow-[#2D5F68]/20'
-									: step > 1
-									? 'bg-white/90 text-[#3D8090] border border-[#3D8090]/30 hover:bg-[#3D8090]/10'
-									: 'bg-white/70 text-slate-500 border border-[#B8D4D8]/60 hover:bg-white'
+									? 'bg-[#1d4d4f] text-white shadow-sm font-black'
+									: 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
 							}`}
 						>
 							1. Voice & Identity
@@ -269,12 +312,10 @@ export default function OnboardingPage() {
 						<button
 							type="button"
 							onClick={() => handleStepChange(2)}
-							className={`py-2.5 px-2.5 rounded-2xl transition-all ${
+							className={`py-3 px-3 rounded-2xl transition-all cursor-pointer ${
 								step === 2
-									? 'bg-gradient-to-r from-[#214349] via-[#2D5F68] to-[#3D8090] text-white shadow-md shadow-[#2D5F68]/20'
-									: step > 2
-									? 'bg-white/90 text-[#3D8090] border border-[#3D8090]/30 hover:bg-[#3D8090]/10'
-									: 'bg-white/70 text-slate-500 border border-[#B8D4D8]/60 hover:bg-white'
+									? 'bg-[#1d4d4f] text-white shadow-sm font-black'
+									: 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
 							}`}
 						>
 							2. Guardrails & Pillars
@@ -282,10 +323,10 @@ export default function OnboardingPage() {
 						<button
 							type="button"
 							onClick={() => handleStepChange(3)}
-							className={`py-2.5 px-2.5 rounded-2xl transition-all ${
+							className={`py-3 px-3 rounded-2xl transition-all cursor-pointer ${
 								step === 3
-									? 'bg-gradient-to-r from-[#214349] via-[#2D5F68] to-[#3D8090] text-white shadow-md shadow-[#2D5F68]/20'
-									: 'bg-white/70 text-slate-500 border border-[#B8D4D8]/60 hover:bg-white'
+									? 'bg-[#1d4d4f] text-white shadow-sm font-black'
+									: 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
 							}`}
 						>
 							3. Visual Brand
@@ -293,9 +334,10 @@ export default function OnboardingPage() {
 					</div>
 				</div>
 
-				<GlassCard glow className="p-6 sm:p-8">
+				{/* Main Form Card */}
+				<div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm">
 					{error && (
-						<div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-medium">
+						<div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs font-bold">
 							{error}
 						</div>
 					)}
@@ -322,65 +364,124 @@ export default function OnboardingPage() {
 						}}
 						className="space-y-6"
 					>
-						{/* STEP 1: Voice & Identity */}
+						{/* STEP 1: Company Identity & Voice */}
 						{step === 1 && (
-							<div className="space-y-6 animate-fadeIn">
-								<div className="flex items-center space-x-3 pb-3 border-b border-[#B8D4D8]/40">
-									<Building2 className="w-5 h-5 text-[#3D8090]" />
-									<h2 className="text-lg font-bold text-slate-900">Company Identity & Voice</h2>
+							<div className="space-y-6 animate-fade-in">
+								<div className="flex items-center space-x-2.5 pb-3 border-b border-slate-100">
+									<Building2 className="w-5 h-5 text-[#1d4d4f]" />
+									<h2 className="text-base font-black text-slate-900">Company Identity & Voice</h2>
 								</div>
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<Input
-										label="Company / Brand Name"
-										placeholder="e.g. Acme Tech Solutions"
-										error={errors.companyName?.message}
-										{...register('companyName', { required: 'Company name is required' })}
-									/>
+									<div className="space-y-1.5">
+										<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+											COMPANY / BRAND NAME
+										</label>
+										<input
+											type="text"
+											placeholder="e.g. Shrameco"
+											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+											{...register('companyName', { required: 'Company name is required' })}
+										/>
+										{errors.companyName && (
+											<p className="text-xs text-rose-500 font-bold">{errors.companyName.message}</p>
+										)}
+									</div>
 
-									<Input
-										label="Industry / Domain"
-										placeholder="e.g. SaaS, Fintech, AI Developer Tools"
-										error={errors.industry?.message}
-										{...register('industry', { required: 'Industry is required' })}
-									/>
+									<div className="space-y-1.5">
+										<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+											INDUSTRY / DOMAIN
+										</label>
+										<input
+											type="text"
+											placeholder="e.g. It industry"
+											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+											{...register('industry', { required: 'Industry is required' })}
+										/>
+										{errors.industry && (
+											<p className="text-xs text-rose-500 font-bold">{errors.industry.message}</p>
+										)}
+									</div>
 								</div>
 
-								<div className="space-y-2">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Brand Voice & Personality
+								<div className="space-y-1.5">
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										BRAND VOICE & PERSONALITY
 									</label>
 									<textarea
 										rows={4}
-										className="w-full bg-[#F5FAFB]/90 border border-[#B8D4D8]/80 text-slate-900 placeholder-slate-400 rounded-2xl p-4 text-sm focus:border-[#3D8090] focus:ring-2 focus:ring-[#3D8090]/20 focus:bg-white transition-all shadow-inner-soft"
-										placeholder="Describe your brand tone (e.g., Authoritative yet approachable, witty, visionary, highly technical, concise, bold)."
+										className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-2xl p-4 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+										placeholder="Describe your brand voice (e.g. Clear and energetic, authoritative yet friendly, witty, direct)."
 										{...register('brandVoice', { required: 'Brand voice description is required' })}
 									/>
 									{errors.brandVoice && (
-										<p className="text-xs text-rose-500 font-bold">
-											{errors.brandVoice.message}
-										</p>
+										<p className="text-xs text-rose-500 font-bold">{errors.brandVoice.message}</p>
 									)}
+								</div>
+
+								{/* Marketing & Outro Context Section */}
+								<div className="pt-4 border-t border-slate-100 space-y-4">
+									<h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+										MARKETING & OUTRO CONTEXT
+									</h3>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+										<div className="space-y-1.5">
+											<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+												BRAND TAGLINE / SLOGAN
+											</label>
+											<input
+												type="text"
+												placeholder="Build in public, grow in seconds"
+												className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+												{...register('tagline')}
+											/>
+										</div>
+
+										<div className="space-y-1.5">
+											<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+												DEFAULT OUTRO LINK / CTA
+											</label>
+											<input
+												type="text"
+												placeholder="e.g. acme.com/try"
+												className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+												{...register('outroLink')}
+											/>
+										</div>
+
+										<div className="space-y-1.5">
+											<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+												DEFAULT SOCIAL HANDLE / WATERMARK
+											</label>
+											<input
+												type="text"
+												placeholder="@shrameco"
+												className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all"
+												{...register('socialHandle')}
+											/>
+										</div>
+									</div>
 								</div>
 							</div>
 						)}
 
-						{/* STEP 2: Content Pillars & Banned Topics/Words */}
+						{/* STEP 2: Content Pillars & Guardrails */}
 						{step === 2 && (
-							<div className="space-y-6 animate-fadeIn">
-								<div className="flex items-center space-x-3 pb-3 border-b border-[#B8D4D8]/40">
-									<ShieldAlert className="w-5 h-5 text-[#3D8090]" />
-									<h2 className="text-lg font-bold text-slate-900">Content Pillars & Safety Rules</h2>
+							<div className="space-y-6 animate-fade-in">
+								<div className="flex items-center space-x-2.5 pb-3 border-b border-slate-100">
+									<ShieldAlert className="w-5 h-5 text-[#1d4d4f]" />
+									<h2 className="text-base font-black text-slate-900">Guardrails & Pillars</h2>
 								</div>
 
 								{/* Content Pillars */}
 								<div className="space-y-2">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Content Pillars (Core Themes)
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										CONTENT PILLARS (CORE THEMES)
 									</label>
 									<div className="flex space-x-2">
-										<Input
-											placeholder="Add a pillar (e.g., Thought Leadership, Tutorials)"
+										<input
+											type="text"
+											placeholder="Add a pillar (e.g. Product Updates, Industry Insights)"
 											value={pillarInput}
 											onChange={(e) => setPillarInput(e.target.value)}
 											onKeyDown={(e) => {
@@ -389,29 +490,30 @@ export default function OnboardingPage() {
 													addTag('contentPillars', pillarInput, setPillarInput);
 												}
 											}}
+											className="flex-1 bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-4 py-2 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none"
 										/>
-										<Button
+										<button
 											type="button"
-											variant="secondary"
 											onClick={() => addTag('contentPillars', pillarInput, setPillarInput)}
-											icon={<Plus className="w-4 h-4" />}
+											className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors flex items-center space-x-1 cursor-pointer"
 										>
-											Add
-										</Button>
+											<Plus className="w-3.5 h-3.5" />
+											<span>Add</span>
+										</button>
 									</div>
 									<div className="flex flex-wrap gap-2 pt-2">
 										{contentPillars.map((tag) => (
 											<span
 												key={tag}
-												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[#3D8090]/15 border border-[#3D8090]/35 text-[#2D5F68] text-xs font-bold shadow-sm"
+												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[#E0EDEF] border border-[#B8D4D8] text-[#1d4d4f] text-xs font-bold"
 											>
 												{tag}
 												<button
 													type="button"
 													onClick={() => removeTag('contentPillars', tag)}
-													className="ml-2 hover:text-rose-600 transition-colors p-0.5"
+													className="ml-2 hover:text-rose-600 transition-colors"
 												>
-													<X className="w-3.5 h-3.5" />
+													<X className="w-3 h-3" />
 												</button>
 											</span>
 										))}
@@ -419,13 +521,14 @@ export default function OnboardingPage() {
 								</div>
 
 								{/* Banned Topics */}
-								<div className="space-y-2 pt-2 border-t border-[#B8D4D8]/30">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Banned Topics (Never Mention)
+								<div className="space-y-2 pt-4 border-t border-slate-100">
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										BANNED TOPICS (NEVER MENTION)
 									</label>
 									<div className="flex space-x-2">
-										<Input
-											placeholder="Add banned topic (e.g., Competitor Names, Controversial Politics)"
+										<input
+											type="text"
+											placeholder="Add banned topic (e.g. Politics, Unverified Claims)"
 											value={bannedTopicInput}
 											onChange={(e) => setBannedTopicInput(e.target.value)}
 											onKeyDown={(e) => {
@@ -434,29 +537,30 @@ export default function OnboardingPage() {
 													addTag('bannedTopics', bannedTopicInput, setBannedTopicInput);
 												}
 											}}
+											className="flex-1 bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-4 py-2 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none"
 										/>
-										<Button
+										<button
 											type="button"
-											variant="secondary"
 											onClick={() => addTag('bannedTopics', bannedTopicInput, setBannedTopicInput)}
-											icon={<Plus className="w-4 h-4" />}
+											className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors flex items-center space-x-1 cursor-pointer"
 										>
-											Add
-										</Button>
+											<Plus className="w-3.5 h-3.5" />
+											<span>Add</span>
+										</button>
 									</div>
 									<div className="flex flex-wrap gap-2 pt-2">
 										{bannedTopics.map((tag) => (
 											<span
 												key={tag}
-												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 text-xs font-bold"
+												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold"
 											>
 												{tag}
 												<button
 													type="button"
 													onClick={() => removeTag('bannedTopics', tag)}
-													className="ml-2 hover:text-rose-600 transition-colors"
+													className="ml-2 hover:text-rose-900 transition-colors"
 												>
-													<X className="w-3.5 h-3.5" />
+													<X className="w-3 h-3" />
 												</button>
 											</span>
 										))}
@@ -464,13 +568,14 @@ export default function OnboardingPage() {
 								</div>
 
 								{/* Banned Words */}
-								<div className="space-y-2 pt-2 border-t border-[#B8D4D8]/30">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Banned Words (Restricted Vocabulary)
+								<div className="space-y-2 pt-4 border-t border-slate-100">
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										BANNED WORDS (RESTRICTED VOCABULARY)
 									</label>
 									<div className="flex space-x-2">
-										<Input
-											placeholder="Add banned word (e.g., cheap, guaranteed, viral)"
+										<input
+											type="text"
+											placeholder="Add banned word (e.g. cheap, guaranteed, viral)"
 											value={bannedWordInput}
 											onChange={(e) => setBannedWordInput(e.target.value)}
 											onKeyDown={(e) => {
@@ -479,29 +584,30 @@ export default function OnboardingPage() {
 													addTag('bannedWords', bannedWordInput, setBannedWordInput);
 												}
 											}}
+											className="flex-1 bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-4 py-2 text-sm text-slate-900 font-semibold placeholder-slate-400 focus:bg-white focus:border-[#1d4d4f] focus:outline-none"
 										/>
-										<Button
+										<button
 											type="button"
-											variant="secondary"
 											onClick={() => addTag('bannedWords', bannedWordInput, setBannedWordInput)}
-											icon={<Plus className="w-4 h-4" />}
+											className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-colors flex items-center space-x-1 cursor-pointer"
 										>
-											Add
-										</Button>
+											<Plus className="w-3.5 h-3.5" />
+											<span>Add</span>
+										</button>
 									</div>
 									<div className="flex flex-wrap gap-2 pt-2">
 										{bannedWords.map((tag) => (
 											<span
 												key={tag}
-												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 text-xs font-bold"
+												className="inline-flex items-center px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold"
 											>
 												{tag}
 												<button
 													type="button"
 													onClick={() => removeTag('bannedWords', tag)}
-													className="ml-2 hover:text-rose-600 transition-colors"
+													className="ml-2 hover:text-amber-950 transition-colors"
 												>
-													<X className="w-3.5 h-3.5" />
+													<X className="w-3 h-3" />
 												</button>
 											</span>
 										))}
@@ -510,132 +616,202 @@ export default function OnboardingPage() {
 							</div>
 						)}
 
-						{/* STEP 3: Visual Identity */}
+						{/* STEP 3: Visual Brand */}
 						{step === 3 && (
-							<div className="space-y-6 animate-fadeIn">
-								<div className="flex items-center space-x-3 pb-3 border-b border-[#B8D4D8]/40">
-									<Palette className="w-5 h-5 text-[#3D8090]" />
-									<h2 className="text-lg font-bold text-slate-900">Visual Identity Tokens</h2>
+							<div className="space-y-6 animate-fade-in">
+								<div className="flex items-center space-x-2.5 pb-3 border-b border-slate-100">
+									<Palette className="w-5 h-5 text-[#1d4d4f]" />
+									<h2 className="text-base font-black text-slate-900">Visual Identity Tokens</h2>
 								</div>
 
 								{/* Logo Upload */}
 								<div className="space-y-2">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Brand Logo Asset
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										BRAND LOGO ASSET
 									</label>
 									<div
 										{...getRootProps()}
 										className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
 											isDragActive
-												? 'border-[#3D8090] bg-[#3D8090]/10'
-												: 'border-[#B8D4D8]/70 hover:border-[#3D8090]/50 bg-[#F5FAFB]'
+												? 'border-[#1d4d4f] bg-[#E0EDEF]'
+												: 'border-[#B8D4D8]/80 hover:border-[#1d4d4f]/60 bg-[#F5FAFB]'
 										}`}
 									>
 										<input {...getInputProps()} />
 										{logoUrl ? (
-											<div className="flex flex-col items-center space-y-3">
+											<div className="flex flex-col items-center space-y-2">
 												<img
 													src={logoUrl}
 													alt="Brand Logo Preview"
-													className="h-16 object-contain max-w-full rounded-xl bg-white p-2 border border-[#B8D4D8]/60 shadow-sm"
+													className="h-14 object-contain max-w-full rounded-xl bg-white p-2 border border-slate-200 shadow-2xs"
 												/>
-												<p className="text-xs text-[#3D8090] font-bold">
+												<p className="text-xs text-[#1d4d4f] font-bold">
 													Click or drag to replace logo
 												</p>
 											</div>
 										) : (
 											<div className="flex flex-col items-center space-y-2">
-												<Upload className="w-8 h-8 text-[#3D8090]" />
-												<p className="text-sm font-bold text-slate-900">
-													Drag & drop your PNG/SVG logo here
-												</p>
-												<p className="text-xs text-slate-500">
-													Transparent background recommended (max 5MB)
+												<div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+													<Upload className="w-5 h-5 text-[#1d4d4f]" />
+												</div>
+												<p className="text-xs text-slate-600 font-bold">
+													Click or drag to replace logo
 												</p>
 											</div>
 										)}
 									</div>
 								</div>
 
-								{/* Hex Color Palette Picker */}
-								<div className="space-y-3 pt-2 border-t border-[#B8D4D8]/30">
-									<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-										Color Palette (Hex Codes)
+								{/* Logo Position In Video Canvas */}
+								<div className="space-y-2 pt-2">
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										LOGO POSITION IN VIDEO CANVAS
+									</label>
+									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+										{[
+											{ id: 'top-right', label: 'Top Right', icon: '↗' },
+											{ id: 'top-left', label: 'Top Left', icon: '↖' },
+											{ id: 'bottom-right', label: 'Bottom Right', icon: '↘' },
+											{ id: 'hidden', label: 'Hidden', icon: '🚫' },
+										].map((pos) => {
+											const isActive = logoPosition === pos.id;
+											return (
+												<button
+													key={pos.id}
+													type="button"
+													onClick={() => setValue('logoPosition', pos.id as any)}
+													className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 ${
+														isActive
+															? 'bg-[#1d4d4f] text-white border-[#1d4d4f] shadow-sm font-black'
+															: 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+													}`}
+												>
+													<span>{pos.icon}</span>
+													<span>{pos.label}</span>
+												</button>
+											);
+										})}
+									</div>
+								</div>
+
+								{/* Color Palette (Hex Codes) */}
+								<div className="space-y-2 pt-4 border-t border-slate-100">
+									<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+										COLOR PALETTE (HEX CODES)
 									</label>
 									<div className="flex items-center space-x-3">
-										<input
-											type="color"
-											value={colorInput}
-											onChange={(e) => setColorInput(e.target.value)}
-											className="w-10 h-10 rounded-xl bg-transparent cursor-pointer border-0"
-										/>
-										<Input
-											value={colorInput}
-											onChange={(e) => setColorInput(e.target.value)}
-											placeholder="#3D8090"
-											className="w-36 uppercase font-mono"
-										/>
-										<Button type="button" variant="secondary" onClick={addColor} icon={<Plus className="w-4 h-4" />}>
-											Add Hex
-										</Button>
+										<div className="flex-1 flex items-center space-x-2 bg-[#F5FAFB] border border-[#B8D4D8]/80 rounded-xl px-3 py-1.5">
+											<input
+												type="color"
+												value={colorInput}
+												onChange={(e) => setColorInput(e.target.value)}
+												className="w-6 h-6 rounded-lg bg-transparent cursor-pointer border-0"
+											/>
+											<input
+												type="text"
+												value={colorInput}
+												onChange={(e) => setColorInput(e.target.value)}
+												placeholder="#6366F1"
+												className="w-full bg-transparent text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none"
+											/>
+										</div>
+										<button
+											type="button"
+											onClick={addColor}
+											className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+										>
+											<Plus className="w-3.5 h-3.5" />
+											<span>Add Hex</span>
+										</button>
 									</div>
 
-									<div className="flex flex-wrap gap-3 pt-2">
-										{colorPalette.map((color) => (
-											<div
-												key={color}
-												className="flex items-center space-x-2 bg-white border border-[#B8D4D8]/70 rounded-2xl p-1.5 pr-3 shadow-sm"
-											>
+									{/* Quick Pre-curated Color Themes */}
+									<div className="pt-2">
+										<label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-2">
+											QUICK PRE-CURATED COLOR THEMES
+										</label>
+										<div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+											{PRE_CURATED_THEMES.map((theme) => (
 												<div
-													className="w-6 h-6 rounded-xl border border-slate-900/10 shadow-inner"
+													key={theme.id}
+													onClick={() => selectPreCuratedTheme(theme.colors)}
+													className="bg-white border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:border-slate-300 hover:shadow-2xs transition-all flex flex-col space-y-2"
+												>
+													<div className="flex items-center space-x-1">
+														<span className="text-xs">{theme.icon}</span>
+														<span className="text-[11px] font-bold text-slate-800 truncate">{theme.name}</span>
+													</div>
+													<div className="flex items-center space-x-1.5">
+														{theme.colors.map((c, ci) => (
+															<span
+																key={ci}
+																className="w-3.5 h-3.5 rounded-full border border-slate-900/10 shadow-2xs"
+																style={{ backgroundColor: c }}
+															/>
+														))}
+													</div>
+												</div>
+											))}
+										</div>
+									</div>
+
+									{/* Active Color Chips */}
+									<div className="flex flex-wrap gap-2 pt-2">
+										{colorPalette.map((color) => (
+											<span
+												key={color}
+												className="inline-flex items-center space-x-2 px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-800 shadow-2xs"
+											>
+												<span
+													className="w-3.5 h-3.5 rounded-full border border-slate-900/10"
 													style={{ backgroundColor: color }}
 												/>
-												<span className="font-mono text-xs uppercase text-slate-900 font-bold">{color}</span>
+												<span>{color}</span>
 												<button
 													type="button"
 													onClick={() => removeColor(color)}
 													className="text-slate-400 hover:text-rose-600 transition-colors ml-1"
 												>
-													<X className="w-3.5 h-3.5" />
+													<X className="w-3 h-3" />
 												</button>
-											</div>
+											</span>
 										))}
 									</div>
 								</div>
 
 								{/* Typography Selection */}
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[#B8D4D8]/30">
-									<div className="space-y-2">
-										<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-											Heading Font Family
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+									<div className="space-y-1.5">
+										<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+											HEADING FONT FAMILY
 										</label>
 										<select
-											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 text-slate-900 font-bold rounded-2xl px-4 py-2.5 text-sm focus:border-[#3D8090] focus:ring-2 focus:ring-[#3D8090]/20 focus:bg-white transition-all shadow-inner-soft"
+											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 text-slate-900 font-bold rounded-xl px-4 py-2.5 text-xs focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all cursor-pointer"
 											value={typography.heading}
 											onChange={(e) =>
 												setValue('typography', { ...typography, heading: e.target.value })
 											}
 										>
-											<option value="Outfit">Outfit (Futuristic Display)</option>
-											<option value="Inter">Inter (Clean Modern Sans)</option>
-											<option value="Roboto">Roboto (Technical Sans)</option>
+											<option value="Outfit (Futuristic Display)">Outfit (Futuristic Display)</option>
+											<option value="Inter (Clean Modern Sans)">Inter (Clean Modern Sans)</option>
+											<option value="Roboto (Technical Sans)">Roboto (Technical Sans)</option>
 										</select>
 									</div>
 
-									<div className="space-y-2">
-										<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-											Body Font Family
+									<div className="space-y-1.5">
+										<label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+											BODY FONT FAMILY
 										</label>
 										<select
-											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 text-slate-900 font-bold rounded-2xl px-4 py-2.5 text-sm focus:border-[#3D8090] focus:ring-2 focus:ring-[#3D8090]/20 focus:bg-white transition-all shadow-inner-soft"
+											className="w-full bg-[#F5FAFB] border border-[#B8D4D8]/80 text-slate-900 font-bold rounded-xl px-4 py-2.5 text-xs focus:bg-white focus:border-[#1d4d4f] focus:outline-none transition-all cursor-pointer"
 											value={typography.body}
 											onChange={(e) =>
 												setValue('typography', { ...typography, body: e.target.value })
 											}
 										>
-											<option value="Inter">Inter (High-Density Reading)</option>
-											<option value="Outfit">Outfit (Modern Sans)</option>
-											<option value="Roboto">Roboto (Neutral)</option>
+											<option value="Inter (High-Density Reading)">Inter (High-Density Reading)</option>
+											<option value="Outfit (Modern Sans)">Outfit (Modern Sans)</option>
+											<option value="Roboto (Neutral)">Roboto (Neutral)</option>
 										</select>
 									</div>
 								</div>
@@ -643,24 +819,23 @@ export default function OnboardingPage() {
 						)}
 
 						{/* Form Navigation Controls */}
-						<div className="flex items-center justify-between pt-6 border-t border-[#B8D4D8]/30">
+						<div className="flex items-center justify-between pt-6 border-t border-slate-100">
 							{step > 1 ? (
-								<Button
+								<button
 									type="button"
-									variant="secondary"
 									onClick={() => handleStepChange(step - 1)}
-									icon={<ArrowLeft className="w-4 h-4" />}
+									className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-2xs flex items-center space-x-1.5 cursor-pointer transition-colors"
 								>
-									Previous
-								</Button>
+									<ArrowLeft className="w-4 h-4" />
+									<span>Previous</span>
+								</button>
 							) : (
 								<div />
 							)}
 
 							{step < 3 ? (
-								<Button
+								<button
 									type="button"
-									variant="primary"
 									onClick={() => {
 										if (step === 1) {
 											const cName = watch('companyName');
@@ -675,25 +850,24 @@ export default function OnboardingPage() {
 											handleStepChange(3);
 										}
 									}}
-									icon={<ArrowRight className="w-4 h-4 ml-1" />}
+									className="px-6 py-2.5 bg-[#1d4d4f] hover:bg-[#15383b] text-white text-xs font-black rounded-xl shadow-sm flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
 								>
-									Next Step
-								</Button>
+									<span>Next Step</span>
+									<ArrowRight className="w-4 h-4" />
+								</button>
 							) : (
-								<Button
+								<button
 									type="submit"
-									variant="primary"
 									disabled={!canSubmitStep3 || isSaving}
-									isLoading={isSaving}
-									className="px-6 bg-gradient-to-r from-[#2D5F68] to-[#3D8090] shadow-[#3D8090]/25"
-									icon={<Sparkles className="w-4 h-4 mr-1" />}
+									className="px-6 py-2.5 bg-[#1d4d4f] hover:bg-[#15383b] text-white text-xs font-black rounded-xl shadow-sm flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
 								>
-									Save Brand Profile
-								</Button>
+									<Sparkles className="w-4 h-4" />
+									<span>{isSaving ? 'Saving...' : 'Save Brand Profile'}</span>
+								</button>
 							)}
 						</div>
 					</form>
-				</GlassCard>
+				</div>
 			</main>
 		</div>
 	);

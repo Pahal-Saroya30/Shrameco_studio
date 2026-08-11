@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/mongoose';
 import { SocialAccount } from '@/models/SocialAccount';
+import { memoryStore } from '@/lib/db/memoryStore';
 import { linkedinService } from '@/lib/social/linkedin';
 import { xService } from '@/lib/social/x';
 import { instagramService } from '@/lib/social/instagram';
@@ -60,7 +61,15 @@ export async function GET(req: NextRequest) {
 				{ upsert: true, new: true }
 			);
 		} catch (dbErr) {
-			console.warn('MongoDB connection failed; skipping account save.');
+			console.warn('MongoDB connection failed; saving account to memoryStore.');
+			memoryStore.upsertSocialAccount(
+				pending.userId,
+				pending.platform,
+				exchanged.accountName,
+				exchanged.accessToken,
+				exchanged.accountId,
+				exchanged.scopes
+			);
 		}
 
 		const returnTo = pending.returnTo || '/dashboard';

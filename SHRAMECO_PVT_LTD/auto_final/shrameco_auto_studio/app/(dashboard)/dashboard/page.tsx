@@ -31,8 +31,8 @@ export default function DashboardHome() {
 						<Moon className="w-6 h-6 text-amber-500 fill-amber-500" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold text-slate-900 tracking-tight">Good Evening, shravan3333m!</h1>
-						<p className="text-sm font-medium text-slate-500">{currentDate}</p>
+						<h1 className="text-2xl font-black text-slate-900 tracking-tight font-display">Good Evening, shravan3333m!</h1>
+						<p className="text-sm font-semibold text-slate-400">{currentDate}</p>
 					</div>
 				</div>
 				<div className="flex items-center space-x-3">
